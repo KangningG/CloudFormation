@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: EC2 instance
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Select a VPC with Subnets covering 2 Availability zone at least.
+    MinLength: 1
+  PublicSubnet:
+    Type: AWS::EC2::Subnet::Id
+    Description: A public subnet to launch chef-client
+Resources:
+  MyEC2InstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Jumpbox security group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+      Tags:
+        -
+          Key: Name
+          Value: MyEC2InstanceSG
+      VpcId: !Ref VpcId   
+
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-b70554c8
+      InstanceType: t2.micro
+      KeyName: fin
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: 
+        - !Ref MyEC2InstanceSG
+
