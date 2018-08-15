@@ -1,6 +1,10 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: EC2 instance
-Parameters:
+Parameters: 
+  AlarmEmail: 
+    Default: "sakura_strife@sina.com"
+    Description: "Email address to notify if operational problems arise"
+    Type: "String"
   VpcId:
     Type: AWS::EC2::VPC::Id
     Description: Select a VPC with Subnets covering 2 Availability zone at least.
@@ -8,8 +12,8 @@ Parameters:
   PublicSubnet:
     Type: AWS::EC2::Subnet::Id
     Description: A public subnet to launch chef-client
-Resources:
-  EC2Role:
+Resources: 
+    EC2Role:
     Type: AWS::IAM::Role
     Properties: 
       AssumeRolePolicyDocument: 
@@ -70,12 +74,58 @@ Resources:
             "",
             [
               "#!/bin/bash -xe","\n",
-              "export CLIENT_NAME=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)","\n",
-              "curl -L https://omnitruck.chef.io/install.sh | sudo bash","\n",
-              "mkdir -p /etc/chef","\n",
-              "aws s3 cp s3://ascending-devops/fin/client.rb /etc/chef/client.rb","\n",
-              "aws s3 cp s3://ascending-devops/fin/validation.pem /etc/chef/validation.pem","\n",
-              "chef-client --once"
+              "touch hellofin.txt"
             ]
           ]
 
+  MyQueue: 
+    Type: AWS::SQS::Queue
+    Properties: 
+      QueueName: "SampleQueue"
+  AlarmTopic: 
+    Type: AWS::SNS::Topic
+    Properties: 
+      Subscription: 
+        - 
+          Endpoint: 
+            Ref: "AlarmEmail"
+          Protocol: "email"
+
+  QueueDepthAlarm: 
+    Type: AWS::CloudWatch::Alarm
+    Properties: 
+      AlarmDescription: "Alarm if queue depth grows beyond 10 messages"
+      Namespace: "AWS/SQS"
+      MetricName: "ApproximateNumberOfMessagesVisible"
+      Dimensions: 
+        - 
+          Name: "QueueName"
+          Value: !GetAte MyQueue.QueueName
+      Statistic: "Sum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      Threshold: "10"
+      ComparisonOperator: "GreaterThanThreshold"
+      AlarmActions: 
+        - 
+          Ref: "AlarmTopic"
+      InsufficientDataActions: 
+        - 
+          Ref: "AlarmTopic"
+Outputs: 
+  QueueURL: 
+    Description: "URL of newly created SQS Queue"
+    Value: 
+      Ref: "MyQueue"
+  QueueARN: 
+    Description: "ARN of newly created SQS Queue"
+    Value: 
+      Fn::GetAtt: 
+        - "MyQueue"
+        - "Arn"
+  QueueName: 
+    Description: "Name newly created SQS Queue"
+    Value: 
+      Fn::GetAtt: 
+        - "MyQueue"
+        - "QueueName"
