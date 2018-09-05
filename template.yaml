@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: EC2 instance stop timer
+Parameters:
+  Region:
+    Description: Instance Region
+    Type: String
+    Default: "us-east-1a"
+  AccountId:
+    Description: Account ID
+    Type: String
+    Default: "5953-1226-5488"
+  Tag:
+    Description: Tag Name
+    Type: String
+    Default: "Fin-client"
+  EmailList:
+    Description: 'Optional email address that will receive alerts.'
+    Type: String
+    Default: ''
+Resources:
+  EchoLambda:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      CodeUri: s3://ascending-devops/fin/sample-bf9d8d1.zip
+      Runtime: python3.6
+      Timeout: 180
+      Handler: FinStopTimer.lambda_handler
+      Environment:
+        Variables:
+          REGION: !Ref Region
+          TAG: !Ref Tag
+  Notice:
+    Type: "AWS::CloudWatch::Alarm"
+    DependsOn: EchoLambda
+    Properties:
+        AlarmName: FinStopTimer
+        AlarmDescription: Send info
+        MetricName: "Invocations"
+        Namespace: "AWS/Lambdas"
+        AlarmActions: [ !Ref 'SNSAlerts' ]
+        Dimensions:
+            -
+                Name: "FunctionName"
+                Value: !Ref EchoLambda
+        Statistic: "Sum"
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: "GreaterThanThreshold"
+  ScheduledRule: 
+    Type: "AWS::Events::Rule"
+    Properties: 
+      Description: Trigger the lambda function EchoLambda
+      ScheduleExpression: "cron(43 17 * * ? *)"
+      State: "ENABLED"
+      Targets: 
+        - Id: "EchoLambda"
+          Arn: !GetAtt [EchoLambda, Arn]
+  PermissionForEventsToInvokeLambda: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref EchoLambda
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "ScheduledRule"
+          - "Arn"
+  SNSAlerts:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Join ['', ["Stop Alerts for ", !Ref Tag]]
+      Subscription:
+      - Endpoint: !Ref 'EmailList'
+        Protocol: email
+      - Endpoint: !GetAtt [EchoLambda, Arn]
+        Protocol: lambda
+      TopicName: "StopAlerts"

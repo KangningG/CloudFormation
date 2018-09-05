@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: EC2 instance
+Parameters:
+  AppEnv:
+    Description: lambda runtime environment available value dev,test,staging,prod
+    Type: String
+    Default: test
+    MinLength: 1
+  Region:
+    Description: Instance Region
+    Type: String
+    Default: "us-east-1a"
+  Tag:
+    Description: Tag Name
+    Type: String
+    Default: "Fin*"
+Resources:
+  EchoLambda:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      CodeUri: ./src
+      Runtime: python3.6
+      Timeout: 180
+      Handler: FinStopTimer.lambda_handler
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref AppEnv
+          REGION: !Ref Region
+          TAG: !Ref Tag

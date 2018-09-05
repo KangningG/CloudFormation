@@ -1,0 +1,5 @@
+# cloudformation
+#exclude the zip package uploaded to S3
+release/*
+*.csv
+*.rb
