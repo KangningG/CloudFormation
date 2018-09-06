@@ -13,7 +13,7 @@ Parameters:
   Tag:
     Description: Tag Name
     Type: String
-    Default: "Fin-client"
+    Default: "Fin*"
   EmailList:
     Description: 'Optional email address that will receive alerts.'
     Type: String
@@ -22,14 +22,44 @@ Resources:
   EchoLambda:
     Type: "AWS::Serverless::Function"
     Properties:
-      CodeUri: s3://ascending-devops/fin/sample-bf9d8d1.zip
+      CodeUri: s3://ascending-devops/fin/sample-8cef699.zip
+      # CodeUri: ./src
       Runtime: python3.6
       Timeout: 180
       Handler: FinStopTimer.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
       Environment:
         Variables:
           REGION: !Ref Region
           TAG: !Ref Tag
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+        RoleName: "LambdaEC2Role"
+        Path: "/"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Sid: "AllowLambdaServiceToAssumeRole"
+            Effect: "Allow"
+            Action:
+                - "sts:AssumeRole"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+        Policies:
+          - PolicyName: InstanceTimer
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - ec2:StartInstances
+                    - ec2:StopInstances
+                    - ec2:DescribeInstanceStatus
+                    - ec2:DescribeInstances
+                    - logs:*
+                  Resource: "*"
   Notice:
     Type: "AWS::CloudWatch::Alarm"
     DependsOn: EchoLambda
@@ -52,7 +82,7 @@ Resources:
     Type: "AWS::Events::Rule"
     Properties: 
       Description: Trigger the lambda function EchoLambda
-      ScheduleExpression: "cron(43 17 * * ? *)"
+      ScheduleExpression: "cron(37 15 * * ? *)"
       State: "ENABLED"
       Targets: 
         - Id: "EchoLambda"
