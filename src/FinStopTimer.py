@@ -7,23 +7,20 @@ import os
 def lambda_handler(event, context):
     client = boto3.client('ec2')
     region = os.environ.get('REGION')
-    tag = os.environ.get('TAG')
-    print(tag);
-    # ec2 = boto3.resource('ec2', region_name = region)
-    # instances = ec2.instances.filter(
-    # 	Filters = [{'Name':'tag-value', 'Values':[tag]}])
+    taglist = os.environ.get('TAG')
+    tags = list()
+    for tag in taglist.split(','):
+         tags.append(tag)
+    print(tags)
     response = client.describe_instances(
-        Filters = [{'Name':'tag-value', 'Values':[tag]},
+        Filters = [{'Name':'tag:Name', 'Values':tags},
         {'Name':'instance-state-name', 'Values':['running']}]
         )
-    # for instance in instances:
-    	# print(instance)
-    # instances.stop_instances()
-    # return instance.id
     InstanceList =  list()
     for r in response['Reservations']:
         # print(r['Instances'])
         for instance in r['Instances']:
             print(instance['InstanceId'])
             InstanceList.append(instance['InstanceId'])
+    
     client.stop_instances(InstanceIds = InstanceList)

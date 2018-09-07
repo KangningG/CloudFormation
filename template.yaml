@@ -12,25 +12,30 @@ Parameters:
     Default: "5953-1226-5488"
   Tag:
     Description: Tag Name
-    Type: String
-    Default: "Fin*"
+    Type: CommaDelimitedList
+    Default: "Fin-client"
   EmailList:
     Description: 'Optional email address that will receive alerts.'
     Type: String
     Default: ''
+  CronTime:
+    Description: Schedule Timer
+    Type: String
+    Default: "cron(37 15 * * ? *)"
 Resources:
   EchoLambda:
     Type: "AWS::Serverless::Function"
     Properties:
-      CodeUri: s3://ascending-devops/fin/sample-8cef699.zip
-      # CodeUri: ./src
+      # CodeUri: s3://ascending-devops/fin/sample-8cef699.zip
+      CodeUri: ./src
       Runtime: python3.6
       Timeout: 180
       Handler: FinStopTimer.lambda_handler
       Role: !GetAtt LambdaRole.Arn
       Environment:
         Variables:
-          REGION: !Ref Region
+          # REGION: !Ref Region
+          REGION: !If: [!Ref Region , value_if_true, value_if_false]
           TAG: !Ref Tag
   LambdaRole:
     Type: AWS::IAM::Role
@@ -82,7 +87,7 @@ Resources:
     Type: "AWS::Events::Rule"
     Properties: 
       Description: Trigger the lambda function EchoLambda
-      ScheduleExpression: "cron(37 15 * * ? *)"
+      ScheduleExpression: !Ref CronTime
       State: "ENABLED"
       Targets: 
         - Id: "EchoLambda"
