@@ -1,5 +1,5 @@
 # def my_handler(event,context):
-# 	return event["time"]
+#   return event["time"]
 import boto3
 import os
 # Enter the region your instances are in. Include only the region without specifying Availability Zone; e.g., 'us-east-1'
