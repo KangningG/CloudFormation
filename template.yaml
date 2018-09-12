@@ -4,8 +4,8 @@ Description: EC2 instance stop timer
 Parameters:
   Region:
     Description: Instance Region
-    Type: String
-    Default: "us-east-1a"
+    Type: CommaDelimitedList
+    Default: "us-east-1"
   AccountId:
     Description: Account ID
     Type: String
@@ -21,21 +21,19 @@ Parameters:
   CronTime:
     Description: Schedule Timer
     Type: String
-    Default: "cron(37 15 * * ? *)"
+    Default: "cron(30 03 * * ? *)"
 Resources:
   EchoLambda:
     Type: "AWS::Serverless::Function"
     Properties:
-      # CodeUri: s3://ascending-devops/fin/sample-8cef699.zip
-      CodeUri: ./src
+      CodeUri: s3://ascending-devops/fin/sample-d4334b5.zip
       Runtime: python3.6
       Timeout: 180
       Handler: FinStopTimer.lambda_handler
       Role: !GetAtt LambdaRole.Arn
       Environment:
         Variables:
-          # REGION: !Ref Region
-          REGION: !If: [!Ref Region , value_if_true, value_if_false]
+          REGION: !Ref Region
           TAG: !Ref Tag
   LambdaRole:
     Type: AWS::IAM::Role
@@ -63,6 +61,7 @@ Resources:
                     - ec2:StopInstances
                     - ec2:DescribeInstanceStatus
                     - ec2:DescribeInstances
+                    - ec2:DescribeRegions
                     - logs:*
                   Resource: "*"
   Notice:
@@ -98,14 +97,11 @@ Resources:
       FunctionName: !Ref EchoLambda
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
-      SourceArn: 
-        Fn::GetAtt: 
-          - "ScheduledRule"
-          - "Arn"
+      SourceArn: !GetAtt [ScheduledRule, Arn]
   SNSAlerts:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: !Join ['', ["Stop Alerts for ", !Ref Tag]]
+      DisplayName: !Ref Tag
       Subscription:
       - Endpoint: !Ref 'EmailList'
         Protocol: email
