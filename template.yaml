@@ -4,7 +4,7 @@ Description: EC2 instance stop timer
 Parameters:
   Region:
     Description: Instance Region
-    Type: CommaDelimitedList
+    Type: String
     Default: "us-east-1"
   AccountId:
     Description: Account ID
@@ -34,7 +34,7 @@ Resources:
       Environment:
         Variables:
           REGION: !Ref Region
-          TAG: !Ref Tag
+          TAG: !Join [',',!Ref Tag]
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -101,7 +101,7 @@ Resources:
   SNSAlerts:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: !Ref Tag
+      DisplayName: !Join ["Instances Stopped with tag:", !Ref Tag]
       Subscription:
       - Endpoint: !Ref 'EmailList'
         Protocol: email
