@@ -1,6 +1,6 @@
 # VirtualEnv vars
 # SERVICE ?= intake
-SOURCE := lambda
+SOURCE := src
 # SOURCEFILE := $(SOURCE)
 
 dependencies: 
@@ -11,8 +11,8 @@ build: dependencies
 	$(eval VERSION=$(shell git rev-parse --short HEAD))
 	cd $(SOURCE) && zip -x '*__pychache__*' -x '*.pyc' -r fin-stopper-$(VERSION).zip .
 
-ci_build: dependencies
-	cd $(SOURCE) && zip -x '*__pychache__*' -x '*.pyc' -r fin-stopper-${VERSION}.zip .
+# ci_build: dependencies
+# 	cd $(SOURCE) && zip -x '*__pychache__*' -x '*.pyc' -r fin-stopper-${VERSION}.zip .
 
 clean: ## -> Deletes current virtual env environment
 	$(info "[-] Who needs all that anyway? Destroying environment....")

@@ -67,7 +67,7 @@ Resources:
     Type: "AWS::CloudWatch::Alarm"
     DependsOn: EchoLambda
     Properties:
-        AlarmName: FinStopTimer
+        # AlarmName: FinStopTimer
         AlarmDescription: Send info
         MetricName: "Invocations"
         Namespace: "AWS/Lambdas"
@@ -75,7 +75,8 @@ Resources:
         Dimensions:
             -
                 Name: "FunctionName"
-                Value: !Ref EchoLambda
+                # Value: !Ref EchoLambda
+                Value: "EchoLambda"
         Statistic: "Sum"
         Period: 60
         EvaluationPeriods: 1

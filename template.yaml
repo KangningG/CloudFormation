@@ -43,17 +43,12 @@ Resources:
           Type: no_artifacts
         Description: Codebuild to zip lambda package and upload it to s3 then deploy it
         Environment: 
-          # EnvironmentVariables:
-          #   - Name: AWS_ACCESS_KEY_ID
-          #     Value: !Ref KeyID
-          #   - Name: AWS_SECRET_ACCESS_KEY
-          #     Value: !Ref AccessKey
           ComputeType: BUILD_GENERAL1_SMALL
           Image: aws/codebuild/python:3.6.5
           Type: LINUX_CONTAINER
         Name: CFLambdaBuild
-        ServiceRole: 
-          Fn::ImportValue: !Ref CodeBuildRole
+        ServiceRole: !Ref CodeBuildRole
+          # Fn::ImportValue: !Sub "fin-stopper-CodeBuildRole"
         Source: 
           BuildSpec: |
             version: 0.1
@@ -85,16 +80,12 @@ Resources:
         EnvironmentVariables:
           - Name: STACK_NAME
             Value: !Ref StackName
-          # - Name: AWS_ACCESS_KEY_ID
-          #   Value: !Ref KeyID
-          # - Name: AWS_SECRET_ACCESS_KEY
-          #   Value: !Ref AccessKey
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/ubuntu-base:14.04
         Type: LINUX_CONTAINER
       Name: LambdaDeployment
-      ServiceRole: 
-        Fn::ImportValue: !Ref CodeBuildRole
+      ServiceRole: !Ref CodeBuildRole
+        # Fn::ImportValue: !Sub "fin-stopper-CodeBuildRole"
       Source: 
         BuildSpec: |
           version: 0.1
