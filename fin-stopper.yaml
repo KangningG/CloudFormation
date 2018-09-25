@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: EC2 instance stop timer
+Parameters:
+  Region:
+    Description: Instance Region
+    Type: String
+    Default: "us-east-1"
+  AccountId:
+    Description: Account ID
+    Type: String
+    Default: "5953-1226-5488"
+  Tag:
+    Description: Tag Name
+    Type: CommaDelimitedList
+    Default: "Fin-client"
+  EmailList:
+    Description: 'Optional email address that will receive alerts.'
+    Type: String
+    Default: ''
+  CronTime:
+    Description: Schedule Timer
+    Type: String
+    Default: "cron(30 03 * * ? *)"
+Resources:
+  EchoLambda:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      CodeUri: s3://ascending-devops/fin/sample-d4334b5.zip
+      Runtime: python3.6
+      Timeout: 180
+      Handler: FinStopTimer.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          REGION: !Ref Region
+          TAG: !Join [',',!Ref Tag]
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+        Path: "/"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Sid: "AllowLambdaServiceToAssumeRole"
+            Effect: "Allow"
+            Action:
+                - "sts:AssumeRole"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+        Policies:
+          - PolicyName: InstanceTimer
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - ec2:StartInstances
+                    - ec2:StopInstances
+                    - ec2:DescribeInstanceStatus
+                    - ec2:DescribeInstances
+                    - ec2:DescribeRegions
+                    - logs:*
+                  Resource: "*"
+  Notice:
+    Type: "AWS::CloudWatch::Alarm"
+    DependsOn: EchoLambda
+    Properties:
+        AlarmName: FinStopTimer
+        AlarmDescription: Send info
+        MetricName: "Invocations"
+        Namespace: "AWS/Lambdas"
+        AlarmActions: [ !Ref 'SNSAlerts' ]
+        Dimensions:
+            -
+                Name: "FunctionName"
+                Value: !Ref EchoLambda
+        Statistic: "Sum"
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: "GreaterThanThreshold"
+  ScheduledRule: 
+    Type: "AWS::Events::Rule"
+    Properties: 
+      Description: Trigger the lambda function EchoLambda
+      ScheduleExpression: !Ref CronTime
+      State: "ENABLED"
+      Targets: 
+        - Id: "EchoLambda"
+          Arn: !GetAtt [EchoLambda, Arn]
+  PermissionForEventsToInvokeLambda: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref EchoLambda
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt [ScheduledRule, Arn]
+  SNSAlerts:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Join ["Instances Stopped with tag:", !Ref Tag]
+      Subscription:
+      - Endpoint: !Ref 'EmailList'
+        Protocol: email
+      - Endpoint: !GetAtt [EchoLambda, Arn]
+        Protocol: lambda
+      # TopicName: "StopAlerts"

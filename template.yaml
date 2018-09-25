@@ -1,7 +1,20 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
+Description: Cloudformation template to create codebuild and codepipeline
+# Transform: AWS::Serverless-2016-10-31
 Description: EC2 instance stop timer
 Parameters:
+  # RoleStack:
+  #   Description: Name of an active CloudFormation stack that contains all role resources
+  #   Type: String
+  #   Default: fin-stopper
+  StackName:
+    Description: Arn of cloudformation stack
+    Type: String
+    Default: fin-stopper
+  OAuthToken:
+    Description: OAuthToken to connect to github
+    Type: String
+    NoEcho: true
   Region:
     Description: Instance Region
     Type: String
@@ -23,88 +36,194 @@ Parameters:
     Type: String
     Default: "cron(30 03 * * ? *)"
 Resources:
-  EchoLambda:
-    Type: "AWS::Serverless::Function"
-    Properties:
-      CodeUri: s3://ascending-devops/fin/sample-d4334b5.zip
-      Runtime: python3.6
-      Timeout: 180
-      Handler: FinStopTimer.lambda_handler
-      Role: !GetAtt LambdaRole.Arn
-      Environment:
-        Variables:
-          REGION: !Ref Region
-          TAG: !Join [',',!Ref Tag]
-  LambdaRole:
-    Type: AWS::IAM::Role
-    Properties:
-        RoleName: "LambdaEC2Role"
-        Path: "/"
-        AssumeRolePolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-          - Sid: "AllowLambdaServiceToAssumeRole"
+  CFLambdaBuild:
+      Type: AWS::CodeBuild::Project
+      Properties: 
+        Artifacts: 
+          Type: no_artifacts
+        Description: Codebuild to zip lambda package and upload it to s3 then deploy it
+        Environment: 
+          # EnvironmentVariables:
+          #   - Name: AWS_ACCESS_KEY_ID
+          #     Value: !Ref KeyID
+          #   - Name: AWS_SECRET_ACCESS_KEY
+          #     Value: !Ref AccessKey
+          ComputeType: BUILD_GENERAL1_SMALL
+          Image: aws/codebuild/python:3.6.5
+          Type: LINUX_CONTAINER
+        Name: CFLambdaBuild
+        ServiceRole: 
+          Fn::ImportValue: !Ref CodeBuildRole
+        Source: 
+          BuildSpec: |
+            version: 0.1
+            phases:
+              install:
+                commands:
+                  - apt-get update
+                  - apt-get install zip -y
+                  # - pip install awscli
+              pre_build:
+                commands:
+                  - make dependencies
+              build:
+                commands:
+                  - make build
+              post_build:
+                commands:
+                  - make upload
+          GitCloneDepth: 1
+          Location: https://github.com/KangningG/CloudFormation.git
+          Type: GITHUB
+  LambdaDeployment:
+    Type: AWS::CodeBuild::Project
+    Properties: 
+      Artifacts: 
+        Type: NO_ARTIFACTS 
+      Description: Deploy CloudFormation template with new git hash version
+      Environment:  
+        EnvironmentVariables:
+          - Name: STACK_NAME
+            Value: !Ref StackName
+          # - Name: AWS_ACCESS_KEY_ID
+          #   Value: !Ref KeyID
+          # - Name: AWS_SECRET_ACCESS_KEY
+          #   Value: !Ref AccessKey
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/ubuntu-base:14.04
+        Type: LINUX_CONTAINER
+      Name: LambdaDeployment
+      ServiceRole: 
+        Fn::ImportValue: !Ref CodeBuildRole
+      Source: 
+        BuildSpec: |
+          version: 0.1
+          phases:
+            pre_build:
+              commands:
+                - if [ -z "$CODEBUILD_RESOLVED_SOURCE_VERSION" ]; then SRC_HASH=${CODEBUILD_SOURCE_VERSION}; else SRC_HASH=${CODEBUILD_RESOLVED_SOURCE_VERSION}; fi
+                - VERSION=$(echo ${SRC_HASH} | cut -b 1-8)
+            build:
+              commands:
+                - aws cloudformation update-stack --stack-name ${STACK_NAME} --use-previous-template --parameters ParameterKey=Version,ParameterValue=${VERSION} ParameterKey=StackName,UsePreviousValue=true ParameterKey=Tag,UsePreviousValue=true ParameterKey=EmailList,UsePreviousValue=true ParameterKey=Region,UsePreviousValue=true ParameterKey=CronTime,UsePreviousValue=true 
+        GitCloneDepth: 1
+        Location: https://github.com/KangningG/CloudFormation.git
+        Type: GITHUB
+  CodeBuildRole:
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
             Effect: "Allow"
-            Action:
-                - "sts:AssumeRole"
-            Principal:
-              Service:
-                - "lambda.amazonaws.com"
-        Policies:
-          - PolicyName: InstanceTimer
-            PolicyDocument:
-              Version: '2012-10-17'
-              Statement:
-                - Effect: "Allow"
-                  Action:
-                    - ec2:StartInstances
-                    - ec2:StopInstances
-                    - ec2:DescribeInstanceStatus
-                    - ec2:DescribeInstances
-                    - ec2:DescribeRegions
-                    - logs:*
-                  Resource: "*"
-  Notice:
-    Type: "AWS::CloudWatch::Alarm"
-    DependsOn: EchoLambda
-    Properties:
-        AlarmName: FinStopTimer
-        AlarmDescription: Send info
-        MetricName: "Invocations"
-        Namespace: "AWS/Lambdas"
-        AlarmActions: [ !Ref 'SNSAlerts' ]
-        Dimensions:
-            -
-                Name: "FunctionName"
-                Value: !Ref EchoLambda
-        Statistic: "Sum"
-        Period: 60
-        EvaluationPeriods: 1
-        Threshold: 0
-        ComparisonOperator: "GreaterThanThreshold"
-  ScheduledRule: 
-    Type: "AWS::Events::Rule"
+            Principal: 
+              Service: 
+                - "codebuild.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Policies:
+        -
+          PolicyName: "CodeBuildRolePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: 
+                  - "ec2:*"
+                  - "s3:*"
+                  - "logs:*"
+                  - "cloudwatch:*"
+                  - "cloudformation:UpdateStack"
+                  - "iam:*"
+                  - "lambda:*"
+                  - "events:*"
+                Resource: "*"
+  CodePipelineRole:
+    Type: "AWS::IAM::Role"
     Properties: 
-      Description: Trigger the lambda function EchoLambda
-      ScheduleExpression: !Ref CronTime
-      State: "ENABLED"
-      Targets: 
-        - Id: "EchoLambda"
-          Arn: !GetAtt [EchoLambda, Arn]
-  PermissionForEventsToInvokeLambda: 
-    Type: AWS::Lambda::Permission
-    Properties: 
-      FunctionName: !Ref EchoLambda
-      Action: "lambda:InvokeFunction"
-      Principal: "events.amazonaws.com"
-      SourceArn: !GetAtt [ScheduledRule, Arn]
-  SNSAlerts:
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: !Join ["Instances Stopped with tag:", !Ref Tag]
-      Subscription:
-      - Endpoint: !Ref 'EmailList'
-        Protocol: email
-      - Endpoint: !GetAtt [EchoLambda, Arn]
-        Protocol: lambda
-      TopicName: "StopAlerts"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "codepipeline.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Policies:
+        -
+          PolicyName: "CodePipelineRolePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: 
+                  - "s3:*"
+                  - "cloudformation:*"
+                  - "codebuild:*"
+                Resource: "*"
+  # CFLambdaPipeline:
+  #   Type: AWS::CodePipeline::Pipeline
+  #   Properties:
+  #     RoleArn: 
+  #       Fn::ImportValue: !Ref CodePipelineRole
+  #     ArtifactStore:
+  #       Type: S3
+  #       Location: ascending-devops/fin
+  #     Stages:
+  #       - Name: GitSource
+  #             ActionTypeId: 
+  #               Category: Source
+  #               Owner: ThirdParty
+  #               Provider: GitHub
+  #               Version: 1
+  #             Configuration:
+  #               Owner: KangningG
+  #               Repo: CloudFormation 
+  #               Branch: master
+  #               OAuthToken: !Ref OAuthToken
+  #             OutputArtifacts:
+  #               - Name: Source
+  #       #       RunOrder: 1
+  #       # - Name: LambdaSource
+  #       #   Actions:
+  #       #     - Name: LambdaSource
+  #       #       ActionTypeId: 
+  #       #         Category: Source
+  #       #         Owner: AWS
+  #       #         Provider: CodeCommit
+  #       #         Version: 1
+  #       #       Configuration:
+  #       #         RepositoryName: CloudFormation
+  #       #         BranchName: master
+  #       #       OutputArtifacts:
+  #       #         - Name: LambdaSource
+  #       #       RunOrder: 1
+  #       - Name: CFLambdaBuild
+  #         Actions:
+  #           - Name: LambdaBuild
+  #             ActionTypeId: 
+  #               Category: Build
+  #               Owner: AWS
+  #               Provider: CodeBuild
+  #               Version: 1
+  #             Configuration:
+  #               ProjectName: !Ref CFLambdaBuild
+  #             InputArtifacts:
+  #               - Name: LambdaSource
+  #             RunOrder: 1
+  #           - Name: LambdaDeployment
+  #             ActionTypeId: 
+  #               Category: Build
+  #               Owner: AWS
+  #               Provider: CodeBuild
+  #               Version: 1
+  #             Configuration:
+  #               ProjectName: !Ref LambdaDeployment
+  #             InputArtifacts:
+  #               - Name: LambdaSource
+  #             RunOrder: 2
