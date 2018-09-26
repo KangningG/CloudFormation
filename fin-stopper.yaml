@@ -14,7 +14,7 @@ Parameters:
     Description: Tag Name
     Type: CommaDelimitedList
     Default: "Fin-client"
-  ZipVersion:
+  Version:
     Description: Version of Zip
     Type: String
   EmailList:
@@ -29,7 +29,11 @@ Resources:
   EchoLambda:
     Type: "AWS::Serverless::Function"
     Properties:
-      CodeUri: s3://ascending-devops/fin/fin-stopper-*.zip
+      CodeUri: 
+        Bucket: ascending-devops
+        Key: !Sub 
+          - fin/fin-stopper-${Version}.zip
+          - {Version: !Ref Version}
       Runtime: python3.6
       Timeout: 180
       Handler: FinStopTimer.lambda_handler
