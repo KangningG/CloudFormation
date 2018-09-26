@@ -19,7 +19,8 @@ clean: ## -> Deletes current virtual env environment
 	rm -rf ./*.zip
 
 upload:
-	aws s3 cp release/fin-stopper-*.zip s3://ascending-devops/fin/
+	$(eval VERSION=$(shell git rev-parse --short HEAD))
+	aws s3 cp release/fin-stopper-$(VERSION).zip s3://ascending-devops/fin/
 
 deploy:
 	aws cloudformation update-stack --stack-name ${STACK_NAME} --use-previous-template --parameters ParameterKey=DatabaseName,UsePreviousValue=true ParameterKey=DatabaseUser,UsePreviousValue=true ParameterKey=DatabasePassword,UsePreviousValue=true ParameterKey=SendgridKey,UsePreviousValue=true ParameterKey=SecurityStack,UsePreviousValue=true ParameterKey=PublicSubnets,UsePreviousValue=true ParameterKey=ZipVersion,ParameterValue=${VERSION} --capabilities CAPABILITY_NAMED_IAM
