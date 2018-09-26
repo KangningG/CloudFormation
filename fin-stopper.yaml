@@ -14,7 +14,7 @@ Parameters:
     Description: Tag Name
     Type: CommaDelimitedList
     Default: "Fin-client"
-  Version:
+  VERSION:
     Description: Version of Zip
     Type: String
   EmailList:
@@ -33,7 +33,7 @@ Resources:
         Bucket: ascending-devops
         Key: !Sub 
           - fin/fin-stopper-${Version}.zip
-          - {Version: !Ref Version}
+          - {Version: !Ref VERSION}
       Runtime: python3.6
       Timeout: 180
       Handler: FinStopTimer.lambda_handler

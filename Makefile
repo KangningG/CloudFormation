@@ -9,8 +9,8 @@ dependencies:
 
 
 build: dependencies
+	# $(eval VERSION=$(shell git rev-parse --short HEAD))
 	$(shell test ! -d "./$(RELEASE)" && mkdir "$(RELEASE)")
-	$(eval VERSION=$(shell git rev-parse --short HEAD))
 	cd $(SOURCE) && zip -x '*__pychache__*' -x '*.pyc' -r ../release/fin-stopper-$(VERSION).zip .
 
 # ci_build: dependencies

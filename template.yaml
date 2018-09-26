@@ -90,13 +90,9 @@ Resources:
         BuildSpec: |
           version: 0.1
           phases:
-            pre_build:
-              commands:
-                - if [ -z "$CODEBUILD_RESOLVED_SOURCE_VERSION" ]; then SRC_HASH=${CODEBUILD_SOURCE_VERSION}; else SRC_HASH=${CODEBUILD_RESOLVED_SOURCE_VERSION}; fi
-                - VERSION=$(echo ${SRC_HASH} | cut -b 1-8)
             build:
               commands:
-                - aws cloudformation update-stack --stack-name ${STACK_NAME} --use-previous-template --parameters ParameterKey=Version,ParameterValue=${VERSION} ParameterKey=StackName,UsePreviousValue=true ParameterKey=Tag,UsePreviousValue=true ParameterKey=EmailList,UsePreviousValue=true ParameterKey=Region,UsePreviousValue=true ParameterKey=CronTime,UsePreviousValue=true 
+                - aws cloudformation update-stack --stack-name ${STACK_NAME} --use-previous-template --parameters ParameterKey=DatabaseName,UsePreviousValue=true ParameterKey=DatabaseUser,UsePreviousValue=true ParameterKey=DatabasePassword,UsePreviousValue=true ParameterKey=SendgridKey,UsePreviousValue=true ParameterKey=SecurityStack,UsePreviousValue=true ParameterKey=PublicSubnets,UsePreviousValue=true ParameterKey=ZipVersion,ParameterValue=${VERSION} --capabilities CAPABILITY_NAMED_IAM
         GitCloneDepth: 1
         Location: https://github.com/KangningG/CloudFormation.git
         Type: GITHUB
