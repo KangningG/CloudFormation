@@ -58,46 +58,17 @@ Resources:
                 commands:
                   - make dependencies
                   - if [ -z "$CODEBUILD_RESOLVED_SOURCE_VERSION" ]; then SRC_HASH=${CODEBUILD_SOURCE_VERSION}; else SRC_HASH=${CODEBUILD_RESOLVED_SOURCE_VERSION}; fi
-                  - VERSION=$(echo ${SRC_HASH} | cut -b 1-7)
+                  - export VERSION=$(echo ${SRC_HASH} | cut -b 1-7)
               build:
                 commands:
                   - make build
+                  - aws cloudformation update-stack --stack-name ${STACK_NAME} --use-previous-template --parameters ParameterKey=Region,UsePreviousValue=true ParameterKey=AccountId,UsePreviousValue=true ParameterKey=Tag,UsePreviousValue=true ParameterKey=EmailList,UsePreviousValue=true ParameterKey=CronTime,UsePreviousValue=true ParameterKey=ZipVersion,ParameterValue=${VERSION} --capabilities CAPABILITY_NAMED_IAM
               post_build:
                 commands:
                   - make upload
           GitCloneDepth: 1
           Location: https://github.com/KangningG/CloudFormation.git
           Type: GITHUB
-  LambdaDeployment:
-    Type: AWS::CodeBuild::Project
-    Properties: 
-      Artifacts: 
-        Type: NO_ARTIFACTS 
-      Description: Deploy CloudFormation template with new git hash version
-      Environment:  
-        EnvironmentVariables:
-          - Name: STACK_NAME
-            Value: !Ref StackName
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/ubuntu-base:14.04
-        Type: LINUX_CONTAINER
-      Name: LambdaDeployment
-      ServiceRole: !Ref CodeBuildRole
-        # Fn::ImportValue: !Sub "fin-stopper-CodeBuildRole"
-      Source: 
-        BuildSpec: |
-          version: 0.1
-          phases:
-            pre_build:
-              commands:
-                - if [ -z "$CODEBUILD_RESOLVED_SOURCE_VERSION" ]; then SRC_HASH=${CODEBUILD_SOURCE_VERSION}; else SRC_HASH=${CODEBUILD_RESOLVED_SOURCE_VERSION}; fi
-                - VERSION=$(echo ${SRC_HASH} | cut -b 1-7)
-            build:
-              commands:
-                - aws cloudformation update-stack --stack-name ${STACK_NAME} --use-previous-template --parameters ParameterKey=DatabaseName,UsePreviousValue=true ParameterKey=DatabaseUser,UsePreviousValue=true ParameterKey=DatabasePassword,UsePreviousValue=true ParameterKey=SendgridKey,UsePreviousValue=true ParameterKey=SecurityStack,UsePreviousValue=true ParameterKey=PublicSubnets,UsePreviousValue=true ParameterKey=ZipVersion,ParameterValue=${VERSION} --capabilities CAPABILITY_NAMED_IAM
-        GitCloneDepth: 1
-        Location: https://github.com/KangningG/CloudFormation.git
-        Type: GITHUB
   CodeBuildRole:
     Type: "AWS::IAM::Role"
     Properties: 
