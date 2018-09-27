@@ -19,10 +19,10 @@ Parameters:
     Description: Instance Region
     Type: String
     Default: "us-east-1"
-  AccountId:
-    Description: Account ID
-    Type: String
-    Default: "5953-1226-5488"
+  # AccountId:
+  #   Description: Account ID
+  #   Type: String
+  #   Default: "5953-1226-5488"
   Tag:
     Description: Tag Name
     Type: CommaDelimitedList
@@ -62,7 +62,7 @@ Resources:
               build:
                 commands:
                   - make build
-                  - aws cloudformation update-stack --stack-name ${STACK_NAME} --use-previous-template --parameters ParameterKey=Region,UsePreviousValue=true ParameterKey=AccountId,UsePreviousValue=true ParameterKey=Tag,UsePreviousValue=true ParameterKey=EmailList,UsePreviousValue=true ParameterKey=CronTime,UsePreviousValue=true ParameterKey=ZipVersion,ParameterValue=${VERSION} --capabilities CAPABILITY_NAMED_IAM
+                  - aws cloudformation update-stack --stack-name ${STACK_NAME} --use-previous-template --parameters ParameterKey=Region,UsePreviousValue=true ParameterKey=Tag,UsePreviousValue=true ParameterKey=EmailList,UsePreviousValue=true ParameterKey=CronTime,UsePreviousValue=true ParameterKey=Version,ParameterValue=${VERSION} --capabilities CAPABILITY_NAMED_IAM
               post_build:
                 commands:
                   - make upload
